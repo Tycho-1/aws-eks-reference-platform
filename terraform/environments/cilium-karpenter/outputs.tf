@@ -47,3 +47,12 @@ output "rds_password" {
   value       = module.rds_postgres.password
   sensitive   = true
 }
+
+# -----------------------------------------------------------------------------
+# Flux GitOps (when enable_flux_gitops = true)
+# -----------------------------------------------------------------------------
+
+output "flux_bootstrap_path" {
+  description = "Path in Git repo where Flux was bootstrapped."
+  value       = var.enable_flux_gitops ? (var.flux_path != "" ? var.flux_path : "clusters/${module.eks_cilium_karpenter.cluster_name}") : null
+}

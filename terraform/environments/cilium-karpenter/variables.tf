@@ -99,6 +99,17 @@ variable "cilium_egress_masquerade_interfaces" {
   default     = "eth0"
 }
 
+variable "cilium_ipam_mode" {
+  description = "Cilium IPAM mode: 'cluster-pool' (default, overlay) or 'eni' (VPC-native). ENI requires IRSA for cilium-operator with EC2 permissions."
+  type        = string
+  default     = "cluster-pool"
+
+  validation {
+    condition     = contains(["cluster-pool", "eni"], var.cilium_ipam_mode)
+    error_message = "cilium_ipam_mode must be 'cluster-pool' or 'eni'."
+  }
+}
+
 variable "cilium_cluster_pool_ipv4_cidr" {
   description = "IPv4 CIDR for Cilium cluster-pool IPAM. Must not overlap with VPC. Default 100.64.0.0/16 (CG-NAT space)."
   type        = string
@@ -201,4 +212,90 @@ variable "tags" {
   description = "Additional tags (merged with Project = project_tag)."
   type        = map(string)
   default     = {}
+}
+
+
+# -----------------------------------------------------------------------------
+# Flux GitOps (optional)
+# -----------------------------------------------------------------------------
+
+variable "enable_flux_gitops" {
+  description = "Enable Flux GitOps bootstrap via Terraform provider. Requires GitHub repo to exist in advance."
+  type        = bool
+  default     = false
+}
+
+variable "flux_git_url" {
+  description = "Git repository URL for Flux (e.g. https://github.com/owner/repo.git or ssh://git@github.com/owner/repo.git). Required when enable_flux_gitops = true."
+  type        = string
+  default     = ""
+}
+
+variable "flux_path" {
+  description = "Path within the Git repo for cluster sync (e.g. clusters/jumbo-eks-dev). Flux will commit manifests here. Defaults to clusters/<cluster-name> if empty."
+  type        = string
+  default     = ""
+}
+
+variable "flux_branch" {
+  description = "Git branch for Flux sync."
+  type        = string
+  default     = "main"
+}
+
+variable "flux_namespace" {
+  description = "Kubernetes namespace for Flux components."
+  type        = string
+  default     = "flux-system"
+}
+
+variable "flux_version" {
+  description = "Flux version to install (e.g. v2.7.5)."
+  type        = string
+  default     = "v2.7.5"
+}
+
+variable "flux_interval" {
+  description = "Reconciliation interval for the bootstrap Kustomization."
+  type        = string
+  default     = "1m0s"
+}
+
+variable "flux_network_policy" {
+  description = "Enable network policies for Flux controllers."
+  type        = bool
+  default     = true
+}
+
+variable "flux_token_auth" {
+  description = "Use PAT (token) for Git auth. If false, use SSH (github_ssh_private_key)."
+  type        = bool
+  default     = true
+}
+
+variable "flux_git_username" {
+  description = "Git username for PAT auth (e.g. your GitHub username or 'git'). Used when flux_token_auth = true."
+  type        = string
+  default     = "git"
+}
+
+variable "github_token" {
+  description = "GitHub PAT for Flux bootstrap (repo scope). Put in terraform.tfvars.secrets — do NOT commit. Required when enable_flux_gitops = true and flux_token_auth = true."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_ssh_private_key" {
+  description = "SSH private key content for Flux bootstrap (deploy key). Use when not using github_ssh_private_key_path. Put in terraform.tfvars.secrets — do NOT commit."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_ssh_private_key_path" {
+  description = "Path to SSH private key file (e.g. ~/x/id_ed25519). Alternative to github_ssh_private_key; Terraform reads the file. Use when flux_token_auth = false."
+  type        = string
+  default     = ""
+  sensitive   = true
 }

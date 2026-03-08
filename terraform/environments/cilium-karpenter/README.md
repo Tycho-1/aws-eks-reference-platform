@@ -13,6 +13,7 @@ Uses the **eks-cilium-karpenter** module. A default **NodePool** and **EC2NodeCl
 | `karpenter-nodepool.tf` | Generates `karpenter-default-nodepool.yaml` from template |
 | `karpenter-nodepool.yaml.tpl` | Template for NodePool + EC2NodeClass (AL2023) |
 | `rds.tf` | Optional RDS PostgreSQL (when `create_rds_postgres = true`) |
+| `flux.tf` | Optional Fluxcd GitOps tool (when `enable_flux_gitops = true`) |
 
 Run `terraform init`, `plan`, and `apply` from this directory.
 
@@ -37,6 +38,7 @@ Example: copy `terraform.tfvars` to `dev.tfvars` and `prod.tfvars`, then edit ea
 | **CoreDNS** | EKS addon, then patched by Terraform: `hostNetwork` + `dnsPolicy: Default` + `KUBERNETES_SERVICE_HOST` = cluster endpoint. Required because Cilium kube-proxy replacement does not route the kubernetes service to the API on EKS. |
 | **Hubble** | Enabled by default (`cilium_hubble_enabled`). Use `cilium hubble ui` (port-forward) or `cilium hubble observe` to view flows. Do not use `cilium hubble enable` — Terraform manages the Helm release. |
 | **Karpenter** | Helm chart (optional). System node group runs the controller; workload nodes are provisioned via NodePool/EC2NodeClass. |
+| **Flux** | Optional. Bootstrap via Terraform provider (`enable_flux_gitops = true`). Installs Flux and commits manifests to your Git repo. Requires GitHub repo to exist in advance. |
 
 The CoreDNS patch runs automatically after `terraform apply` via a `null_resource` provisioner. On destroy/recreate, the patch is applied again on the next apply.
 
@@ -54,6 +56,31 @@ Main variables are in **`terraform.tfvars`** — edit that file to change values
 - **karpenter_nodepool_limit_memory**: Max memory across workload nodes (default `"400Gi"` for small testing; use `"2000Gi"`+ for prod).
 - **cilium_egress_masquerade_interfaces**: Interface(s) for egress masquerading (default `eth0`). Use `eth0 ens+` or `ens+` for AL2023 nodes — the default NodePool uses AL2023.
 - **create_rds_postgres**: `false` (default). Set `true` to create an RDS PostgreSQL instance in database subnets (same VPC, separate from EKS). Create the cluster first, then add RDS later if needed.
+- **enable_flux_gitops**: `false` (default). Set `true` to bootstrap Flux via the Terraform provider after cluster creation. **Requires the GitHub repository to exist and be initialized in advance.**
+- **Flux variables** (when `enable_flux_gitops = true`): `flux_git_url`, `flux_path`, `flux_branch`, `flux_version`, `flux_token_auth`, `flux_git_username`, `flux_network_policy`. Secrets: `github_token` (PAT) or `github_ssh_private_key` — put in `terraform.tfvars.secrets`. See [docs/flux-gitops-automation-best-practices.md](../../docs/flux-gitops-automation-best-practices.md) for why `flux_network_policy` matters.
+
+## Optional Flux GitOps
+
+Flux can be bootstrapped automatically via the Terraform provider. **Prerequisites:**
+
+1. **GitHub repository must exist** in advance — create it (empty or with a README) and ensure it has at least one commit.
+2. **Secrets** — put `github_token` (PAT) or `github_ssh_private_key` in `terraform.tfvars.secrets` (do **not** commit that file).
+
+**Setup:**
+
+1. Copy `terraform.tfvars.example` to `terraform.tfvars` and set:
+   - `enable_flux_gitops = true`
+   - `flux_git_url = "https://github.com/<owner>/<repo>.git"` (PAT) or `ssh://git@github.com/<owner>/<repo>.git` (SSH)
+   - `flux_path = "clusters/jumbo-eks-dev"` (or leave empty to use `clusters/<cluster-name>`)
+   - `flux_token_auth = true` (default, PAT) or `false` (SSH deploy key)
+   - `flux_network_policy = true` (default) — creates NetworkPolicies to restrict traffic to Flux controllers; recommended for security (see docs).
+2. Copy `terraform.tfvars.secrets.example` to `terraform.tfvars.secrets` and add:
+   - **PAT:** `github_token` (when `flux_token_auth = true`)
+   - **SSH:** `github_ssh_private_key_path = "~/x/id_ed25519"` or `github_ssh_private_key` (inline heredoc); add public key as deploy key to the repo
+3. Add `terraform.tfvars.secrets` to `.gitignore` (see `.gitignore` in this directory).
+4. Run `terraform apply -var-file=terraform.tfvars.secrets` (or use `terraform.tfvars.secrets.auto.tfvars` for auto-load).
+
+Flux will install on the cluster and commit manifests to your Git repo. A `terraform-outputs` ConfigMap is created in `flux-system` for Flux Kustomizations to use via `postBuild.substituteFrom`. See [docs/flux-gitops-automation-best-practices.md](../../docs/flux-gitops-automation-best-practices.md).
 
 ## Optional RDS PostgreSQL
 
@@ -112,6 +139,9 @@ Or use External Secrets / AWS Secrets Manager for production.
    ```
 
 After that, Karpenter can provision workload nodes. The generated YAML is written to `karpenter-default-nodepool.yaml` in this directory (and listed in the output).
+
+4. **If Flux was enabled** (`enable_flux_gitops = true`): Flux is already running and syncing from your Git repo. Check with `flux get kustomizations`. Add Kustomizations/HelmReleases to your repo under the path you configured (`flux_path`). The `terraform-outputs` ConfigMap in `flux-system` provides cluster-specific values for `postBuild.substituteFrom`.
+
 
 ---
 
