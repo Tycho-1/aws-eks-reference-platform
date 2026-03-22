@@ -8,6 +8,7 @@ Simple list of what to add next, aligned with platform requirements and job stac
 
 - [ ] **Flux** or **Argo CD** — GitOps automation; declarative cluster and workload deployment
 - [ ] Example GitOps repo structure (Kustomize overlays, Helm releases)
+- [ ] **Flux** added to environment cilium-karpenter
 
 ---
 

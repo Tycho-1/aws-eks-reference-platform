@@ -54,11 +54,12 @@ resource "flux_bootstrap_git" "this" {
 
   path = var.flux_path != "" ? var.flux_path : "clusters/${module.eks_cilium_karpenter.cluster_name}"
 
-  namespace          = var.flux_namespace
-  version            = var.flux_version
-  interval           = var.flux_interval
-  embedded_manifests = true
-  network_policy     = var.flux_network_policy
+  namespace              = var.flux_namespace
+  version                = var.flux_version
+  interval               = var.flux_interval
+  embedded_manifests     = true
+  network_policy         = var.flux_network_policy
+  kustomization_override = file("${path.module}/flux-system-kustomization-override.yaml")
 }
 
 # SSH auth (flux_token_auth = false)
@@ -70,59 +71,14 @@ resource "flux_bootstrap_git" "this_ssh" {
 
   path = var.flux_path != "" ? var.flux_path : "clusters/${module.eks_cilium_karpenter.cluster_name}"
 
-  namespace          = var.flux_namespace
-  version            = var.flux_version
-  interval           = var.flux_interval
-  embedded_manifests = true
-  network_policy     = var.flux_network_policy
+  namespace              = var.flux_namespace
+  version                = var.flux_version
+  interval               = var.flux_interval
+  embedded_manifests     = true
+  network_policy         = var.flux_network_policy
+  kustomization_override = file("${path.module}/flux-system-kustomization-override.yaml")
 }
 
-# -----------------------------------------------------------------------------
-# Flux + Cilium kube-proxy replacement: regular pods cannot reach the kubernetes
-# ClusterIP (172.20.0.1) — it doesn't route to the EKS API. Same issue as CoreDNS.
-# Patch Flux controllers with KUBERNETES_SERVICE_HOST so client-go bypasses the
-# broken ClusterIP and connects directly to the EKS endpoint. No hostNetwork needed.
-# Flux will overwrite this on next sync; add the patch to your flux-system repo
-# for a permanent fix (see docs/flux-cilium-eks-api-patch.md).
-# -----------------------------------------------------------------------------
-resource "null_resource" "flux_cilium_api_patch" {
-  count = var.enable_flux_gitops ? 1 : 0
-
-  triggers = {
-    cluster_name   = module.eks_cilium_karpenter.cluster_name
-    endpoint_host  = module.eks_cilium_karpenter.cluster_endpoint_host
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      set -e
-      aws eks update-kubeconfig --region ${var.aws_region} --name ${module.eks_cilium_karpenter.cluster_name} 2>/dev/null || true
-      ENDPOINT_HOST="${module.eks_cilium_karpenter.cluster_endpoint_host}"
-      # Suspend flux-system so Flux won't overwrite our patch
-      echo "Waiting for flux-system Kustomization..."
-      for i in $(seq 1 30); do
-        flux get kustomization flux-system -n flux-system 2>/dev/null && break
-        sleep 2
-      done
-      echo "Suspending flux-system Kustomization..."
-      flux suspend kustomization flux-system -n flux-system 2>/dev/null || true
-      for dep in source-controller kustomize-controller helm-controller notification-controller; do
-        echo "Waiting for $dep..."
-        for i in $(seq 1 60); do
-          kubectl get deployment $dep -n flux-system 2>/dev/null && break
-          sleep 5
-        done
-        echo "Patching $dep with KUBERNETES_SERVICE_HOST=$ENDPOINT_HOST"
-        kubectl set env deployment/$dep -n flux-system KUBERNETES_SERVICE_HOST=$ENDPOINT_HOST KUBERNETES_SERVICE_PORT=443
-      done
-      echo "Waiting for source-controller (others depend on it)..."
-      kubectl rollout status deployment/source-controller -n flux-system --timeout=180s || true
-      echo "Verifying patch..."
-      kubectl get deployment kustomize-controller -n flux-system -o jsonpath='{.spec.template.spec.containers[0].env}' | grep -q KUBERNETES_SERVICE_HOST && echo "OK: KUBERNETES_SERVICE_HOST is set" || echo "WARN: KUBERNETES_SERVICE_HOST not found"
-      echo "Flux controllers patched. flux-system remains SUSPENDED."
-      echo "Add the patch to your Git repo (see docs/flux-cilium-eks-api-patch.md), then run: flux resume kustomization flux-system -n flux-system"
-    EOT
-  }
-
-  depends_on = [flux_bootstrap_git.this, flux_bootstrap_git.this_ssh, kubernetes_config_map_v1.terraform_outputs]
-}
+# Flux + Cilium: Flux controller patches and postBuild are applied via
+# kustomization_override (flux-system-kustomization-override.yaml). No manual
+# edits or null_resource needed — Terraform commits the patches during bootstrap.

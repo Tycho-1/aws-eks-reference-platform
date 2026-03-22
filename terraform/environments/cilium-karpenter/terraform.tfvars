@@ -31,8 +31,8 @@ karpenter_nodepool_limit_memory    = "400Gi"
 
 # Cilium
 cilium_egress_masquerade_interfaces       = "ens+"  # AL2023 nodes (EKS 1.30+); use "eth0" for AL2 AMI
-cilium_ipam_mode                          = "cluster-pool"  # or "eni" for VPC-native (requires cilium-operator IRSA)
-cilium_cluster_pool_ipv4_cidr             = "100.64.0.0/16"
+cilium_ipam_mode                          = "eni"   # default; or "cluster-pool" for overlay (Cilium assigns pod CIDRs)
+cilium_cluster_pool_ipv4_cidr             = ""      # only used when cilium_ipam_mode = "cluster-pool"
 cilium_encryption_enabled                 = true 
 cilium_hubble_enabled                     = true
 cilium_prometheus_service_monitor_enabled = false

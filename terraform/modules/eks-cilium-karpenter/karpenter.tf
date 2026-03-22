@@ -47,11 +47,13 @@ resource "helm_release" "karpenter" {
     <<-EOT
     nodeSelector:
       karpenter.sh/controller: 'true'
-    dnsPolicy: Default
-    # Cilium kube-proxy replacement: kubernetes service (172.20.0.1) doesn't route to EKS API.
-    # hostNetwork + env vars so controller uses node network (like CoreDNS). METRICS_PORT=8082
-    # avoids bind conflict (default 8080). replicas:1 safe when node group has single node.
+    # Cilium kube-proxy replacement on EKS (cluster-pool mode):
+    # hostNetwork uses node network stack directly — bypasses overlay egress masquerade issues.
+    # dnsPolicy:Default uses node VPC resolver (no dependency on CoreDNS itself).
+    # KUBERNETES_SERVICE_HOST points client-go at the real EKS endpoint, not the broken ClusterIP.
+    # METRICS_PORT=8082 avoids port 8080 conflict if multiple hostNetwork pods share a node.
     hostNetwork: true
+    dnsPolicy: Default
     replicas: 1
     controller:
       env:
@@ -63,6 +65,14 @@ resource "helm_release" "karpenter" {
           value: "8082"
       metrics:
         port: 8082
+      # From Karpenter docs example; tune up for large clusters (many NodePools/nodes).
+      resources:
+        requests:
+          cpu: "1"
+          memory: 1Gi
+        limits:
+          cpu: "1"
+          memory: 1Gi
     settings:
       clusterName: ${module.eks.cluster_name}
       clusterEndpoint: ${module.eks.cluster_endpoint}
