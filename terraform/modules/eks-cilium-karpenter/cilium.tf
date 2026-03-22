@@ -9,6 +9,134 @@ locals {
   # Cluster Mesh: cluster name and ID (required for multi-cluster)
   cilium_cluster_name = var.cilium_clustermesh_enabled ? var.cilium_cluster_name : "default"
   cilium_cluster_id   = var.cilium_clustermesh_enabled ? var.cilium_cluster_id : 0
+
+  # ENI mode: pass the IRSA role ARN via eni.iamRole — the Cilium chart's operator
+  # ServiceAccount template reads this value and sets the eks.amazonaws.com/role-arn
+  # annotation automatically (see templates/cilium-operator/serviceaccount.yaml).
+  # Empty string in cluster-pool mode: the chart only injects the annotation when
+  # both eni.enabled=true AND eni.iamRole is non-empty, so the empty value is harmless.
+  cilium_operator_role_arn = var.cilium_ipam_mode == "eni" ? aws_iam_role.cilium_operator_eni[0].arn : ""
+
+  # IPAM block: cluster-pool (overlay) or eni (VPC-native)
+  cilium_ipam_cluster_pool = <<-YAML
+    # Cluster-pool: Cilium assigns pod CIDRs via CiliumNode CRDs (EKS does not set spec.podCIDR with custom CNI).
+    ipam:
+      mode: cluster-pool
+      operator:
+        clusterPoolIPv4PodCIDRList:
+          - ${var.cilium_cluster_pool_ipv4_cidr}
+        clusterPoolIPv4MaskSize: 24
+    YAML
+  cilium_ipam_eni = <<-YAML
+    # ENI: pods get real VPC IPs directly; no overlay, no masquerade needed.
+    # Requires cilium-operator IRSA (see below) with EC2 permissions to manage ENIs.
+    # Admission webhooks (Kyverno, cert-manager, Istio, etc.) work because the EKS
+    # control plane can reach pod IPs directly via VPC routing — no ClusterIP DNAT needed.
+    # routingMode: native replaces the deprecated tunnel: disabled (removed in Cilium v1.15).
+    ipam:
+      mode: eni
+    eni:
+      enabled: true
+      iamRole: ${local.cilium_operator_role_arn}
+    routingMode: native
+    YAML
+  cilium_ipam_yaml = var.cilium_ipam_mode == "cluster-pool" ? local.cilium_ipam_cluster_pool : local.cilium_ipam_eni
+}
+
+# -----------------------------------------------------------------------------
+# ENI IPAM — IRSA for cilium-operator
+#
+# In ENI mode, the Cilium operator calls the EC2 API to create, attach, and
+# assign private IPs on ENIs (one per node). Pod IPs come from these ENI IPs.
+# The operator runs as a Kubernetes service account annotated with this role.
+# Only created when cilium_ipam_mode = "eni".
+# -----------------------------------------------------------------------------
+
+data "aws_iam_policy_document" "cilium_operator_eni" {
+  count = var.cilium_ipam_mode == "eni" ? 1 : 0
+
+  statement {
+    sid    = "CiliumENIManagement"
+    effect = "Allow"
+    actions = [
+      # Read — discover VPC topology, instances, existing ENIs
+      "ec2:DescribeInstances",
+      "ec2:DescribeInstanceTypes",
+      "ec2:DescribeNetworkInterfaces",
+      "ec2:DescribeSubnets",
+      "ec2:DescribeVpcs",
+      "ec2:DescribeSecurityGroups",
+      "ec2:DescribeTags",
+      "ec2:DescribeVpcPeeringConnections",
+      # Route tables — required for routingMode: native (ENI mode installs VPC routes for pod IPs)
+      "ec2:DescribeRouteTables",
+      "ec2:CreateRoute",
+      "ec2:DeleteRoute",
+      # Write — manage ENIs and secondary IPs for pods
+      "ec2:CreateNetworkInterface",
+      "ec2:DeleteNetworkInterface",
+      "ec2:AttachNetworkInterface",
+      "ec2:DetachNetworkInterface",
+      "ec2:ModifyNetworkInterfaceAttribute",
+      "ec2:AssignPrivateIpAddresses",
+      "ec2:UnassignPrivateIpAddresses",
+      "ec2:CreateTags",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "cilium_operator_eni" {
+  count = var.cilium_ipam_mode == "eni" ? 1 : 0
+
+  name        = "${local.cluster_name}-cilium-operator-eni"
+  description = "Allows Cilium operator to manage ENIs and secondary IPs for pod networking (ENI IPAM mode)"
+  policy      = data.aws_iam_policy_document.cilium_operator_eni[0].json
+
+  tags = local.base_tags
+}
+
+# IRSA trust policy: only the cilium-operator service account in kube-system can assume this role
+data "aws_iam_policy_document" "cilium_operator_eni_trust" {
+  count = var.cilium_ipam_mode == "eni" ? 1 : 0
+
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${module.eks.oidc_provider}:sub"
+      values   = ["system:serviceaccount:kube-system:cilium-operator"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${module.eks.oidc_provider}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "cilium_operator_eni" {
+  count = var.cilium_ipam_mode == "eni" ? 1 : 0
+
+  name               = "${local.cluster_name}-cilium-operator-eni"
+  assume_role_policy = data.aws_iam_policy_document.cilium_operator_eni_trust[0].json
+
+  tags = local.base_tags
+}
+
+resource "aws_iam_role_policy_attachment" "cilium_operator_eni" {
+  count = var.cilium_ipam_mode == "eni" ? 1 : 0
+
+  role       = aws_iam_role.cilium_operator_eni[0].name
+  policy_arn = aws_iam_policy.cilium_operator_eni[0].arn
 }
 
 resource "helm_release" "cilium" {
@@ -30,14 +158,7 @@ resource "helm_release" "cilium" {
     clustermesh:
       useAPIServer: ${var.cilium_clustermesh_enabled}
 
-    # Cluster-pool IPAM: Cilium assigns pod CIDRs via CiliumNode CRDs.
-    # EKS does not assign spec.podCIDR when using custom CNI (no VPC CNI).
-    ipam:
-      mode: cluster-pool
-      operator:
-        clusterPoolIPv4PodCIDRList:
-          - ${var.cilium_cluster_pool_ipv4_cidr}
-        clusterPoolIPv4MaskSize: 24
+    ${local.cilium_ipam_yaml}
 
     # Required for EKS: explicit API server host/port (no https:// prefix)
     k8sServiceHost: ${local.k8s_service_host}

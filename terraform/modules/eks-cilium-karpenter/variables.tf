@@ -147,6 +147,17 @@ variable "cilium_egress_masquerade_interfaces" {
   default     = "eth0 ens+"
 }
 
+variable "cilium_ipam_mode" {
+  description = "Cilium IPAM mode: 'cluster-pool' (default, overlay, Cilium assigns pod CIDRs via CiliumNode) or 'eni' (VPC-native, pods get IPs from VPC subnets). ENI requires IRSA for cilium-operator with EC2 permissions."
+  type        = string
+  default     = "cluster-pool"
+
+  validation {
+    condition     = contains(["cluster-pool", "eni"], var.cilium_ipam_mode)
+    error_message = "cilium_ipam_mode must be 'cluster-pool' or 'eni'."
+  }
+}
+
 variable "cilium_cluster_pool_ipv4_cidr" {
   description = "IPv4 CIDR for Cilium cluster-pool IPAM. Must not overlap with VPC. Use CG-NAT space (e.g. 100.64.0.0/16) to avoid conflicts."
   type        = string

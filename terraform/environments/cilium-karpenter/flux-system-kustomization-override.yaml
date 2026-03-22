@@ -1,0 +1,96 @@
+# Flux-system kustomization override for EKS + Cilium.
+# Used by flux_bootstrap_git.kustomization_override so Terraform commits these
+# patches during bootstrap. No manual edits needed.
+#
+# 1. Flux controller patches: KUBERNETES_SERVICE_HOST from terraform-outputs
+#    (Cilium kube-proxy replacement: kubernetes ClusterIP doesn't route to EKS API)
+# 2. Root Kustomization patch: postBuild.substituteFrom for terraform-outputs
+#    (Kyverno, cert-manager, CNPG, etc. need ${CLUSTER_ENDPOINT_HOST} substituted)
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gotk-components.yaml
+  - gotk-sync.yaml
+patches:
+  # --- Flux controller patches (reach Kubernetes API on EKS + Cilium) ---
+  - target:
+      kind: Deployment
+      name: source-controller
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: KUBERNETES_SERVICE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: terraform-outputs
+              key: CLUSTER_ENDPOINT_HOST
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: KUBERNETES_SERVICE_PORT
+          value: "443"
+  - target:
+      kind: Deployment
+      name: kustomize-controller
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: KUBERNETES_SERVICE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: terraform-outputs
+              key: CLUSTER_ENDPOINT_HOST
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: KUBERNETES_SERVICE_PORT
+          value: "443"
+  - target:
+      kind: Deployment
+      name: helm-controller
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: KUBERNETES_SERVICE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: terraform-outputs
+              key: CLUSTER_ENDPOINT_HOST
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: KUBERNETES_SERVICE_PORT
+          value: "443"
+  - target:
+      kind: Deployment
+      name: notification-controller
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: KUBERNETES_SERVICE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: terraform-outputs
+              key: CLUSTER_ENDPOINT_HOST
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: KUBERNETES_SERVICE_PORT
+          value: "443"
+  # --- Root Kustomization: postBuild for ${CLUSTER_ENDPOINT_HOST} substitution ---
+  - target:
+      kind: Kustomization
+      name: flux-system
+    patch: |
+      - op: add
+        path: /spec/postBuild
+        value:
+          substituteFrom:
+            - kind: ConfigMap
+              name: terraform-outputs
+              optional: false
