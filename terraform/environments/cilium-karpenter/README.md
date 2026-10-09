@@ -68,7 +68,7 @@ Copy **`terraform.tfvars.example`** to **`terraform.tfvars`** (see [Variable fil
 - **cilium_ipam_mode**: `eni` (default, VPC-native) or `cluster-pool` (overlay). ENI requires IRSA for cilium-operator with EC2 permissions.
 - **create_rds_postgres**: `false` (default). Set `true` to create an RDS PostgreSQL instance in database subnets (same VPC, separate from EKS). Create the cluster first, then add RDS later if needed.
 - **enable_flux_gitops**: `false` (default). Set `true` to bootstrap Flux via the Terraform provider after cluster creation. **Requires the GitHub repository to exist and be initialized in advance.**
-- **Flux variables** (when `enable_flux_gitops = true`): `flux_git_url`, `flux_path`, `flux_branch`, `flux_version`, `flux_token_auth`, `flux_git_username`, `flux_network_policy`. Secrets: `github_token` (PAT) or `github_ssh_private_key` — put in `terraform.tfvars.secrets`. `flux_network_policy = true` restricts ingress to the Flux controllers with NetworkPolicies (enforced by Cilium).
+- **Flux variables** (when `enable_flux_gitops = true`): `flux_git_url`, `flux_path`, `flux_branch`, `flux_version`, `flux_token_auth`, `flux_git_username`, `flux_network_policy`. Secrets in `terraform.tfvars.secrets`: `github_token` (PAT), or SSH via `github_ssh_private_key` / `github_ssh_private_key_path` and optional `github_ssh_private_key_passphrase` for encrypted keys. `flux_network_policy = true` restricts ingress to the Flux controllers with NetworkPolicies (enforced by Cilium).
 
 ## Optional Flux GitOps
 
@@ -86,7 +86,7 @@ The example `terraform.tfvars.example` keeps Flux **off** (`enable_flux_gitops =
    - `flux_git_url = "https://github.com/<owner>/<repo>.git"` (PAT) or `ssh://git@github.com/<owner>/<repo>.git` (SSH)
    - `flux_path = "clusters/jumbo-eks-dev"` (or leave empty to use `clusters/<cluster-name>`)
    - **PAT:** `flux_token_auth = true`, `flux_git_username`, `github_token`
-   - **SSH:** `flux_token_auth = false`, `github_ssh_private_key_path = "~/.ssh/<key>"` (or inline `github_ssh_private_key`); add the public key as a deploy key with write access
+   - **SSH:** `flux_token_auth = false`, `github_ssh_private_key_path = "~/.ssh/<key>"` (or inline `github_ssh_private_key`), `github_ssh_private_key_passphrase` if the key is encrypted; add the public key as a deploy key with write access
 2. Run `terraform apply -var-file=terraform.tfvars.secrets`. Values in that file override `terraform.tfvars`.
 
 Flux will install on the cluster and commit manifests to your Git repo. A `terraform-outputs` ConfigMap is created in `flux-system` for Flux Kustomizations to use via `postBuild.substituteFrom`. **EKS + Cilium patches are automated:** `flux-system-kustomization-override.yaml` is applied via `kustomization_override`, adding Flux controller `KUBERNETES_SERVICE_HOST` patches and the root Kustomization `postBuild` — no manual edits or pause/resume needed.

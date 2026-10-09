@@ -299,3 +299,10 @@ variable "github_ssh_private_key_path" {
   default     = ""
   sensitive   = true
 }
+
+variable "github_ssh_private_key_passphrase" {
+  description = "Passphrase for an encrypted SSH private key (Flux SSH auth). Empty string for passwordless keys. Put in terraform.tfvars.secrets — do NOT commit."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

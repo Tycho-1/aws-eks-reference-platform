@@ -73,6 +73,7 @@ provider "flux" {
     ssh = {
       username    = "git"
       private_key = local.flux_ssh_private_key
+      password    = local.flux_ssh_private_key_passphrase
     }
   }
 }
@@ -96,8 +97,9 @@ locals {
   flux_git_password = var.enable_flux_gitops && var.flux_token_auth ? coalesce(var.github_token, "x") : "x"
   # When PAT: pass placeholder to SSH provider (unused). When SSH: read from file path or use inline key.
   flux_ssh_private_key = var.flux_token_auth ? " " : (
-    var.github_ssh_private_key_path != "" ? file(pathexpand(var.github_ssh_private_key_path)) : coalesce(var.github_ssh_private_key, " ")
+    trimspace(var.github_ssh_private_key_path) != "" ? file(pathexpand(var.github_ssh_private_key_path)) : coalesce(var.github_ssh_private_key, " ")
   )
+  flux_ssh_private_key_passphrase = var.flux_token_auth ? "" : var.github_ssh_private_key_passphrase
 
   # Flux provider requires URL scheme to match auth: https→http block, ssh→ssh block
   flux_git_url_https = replace(local.flux_git_url, "ssh://git@", "https://")
