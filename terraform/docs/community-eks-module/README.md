@@ -284,7 +284,7 @@ Thin wrapper in `terraform/modules/eks-platform/`:
 Different pattern in `terraform/modules/eks-cilium-karpenter/`:
 
 - **Root module:** `cluster_addons = {}`, `eks_managed_node_groups = {}`, `bootstrap_self_managed_addons = false` — we omit vpc-cni and kube-proxy; Cilium replaces both.
-- **Cilium:** Installed via **Helm** (not EKS addon) — cluster-pool IPAM, kube-proxy replacement.
+- **Cilium:** Installed via **Helm** (not EKS addon) — ENI IPAM (default) or cluster-pool, kube-proxy replacement.
 - **Addons:** CoreDNS and eks-pod-identity-agent created separately in `addons.tf` as `aws_eks_addon` *after* the node group (CoreDNS needs nodes to schedule).
 - **Node group:** Uses **eks-managed-node-group** submodule directly — not via root `eks_managed_node_groups` — so Cilium installs *before* nodes.
 - **Karpenter:** Uses **karpenter** submodule for IAM, SQS, EventBridge, Pod Identity; optionally installs Karpenter Helm chart.

@@ -1,7 +1,10 @@
 # -----------------------------------------------------------------------------
-# Main variables — edit these for your environment.
-# Terraform automatically loads this file when you run plan/apply.
-# For different environments, use: terraform plan -var-file=dev.tfvars
+# Example variable values — copy to terraform.tfvars and edit (terraform.tfvars is gitignored).
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Terraform auto-loads terraform.tfvars on plan/apply. For other envs:
+#   terraform plan -var-file=dev.tfvars
 # -----------------------------------------------------------------------------
 
 # Cluster identity

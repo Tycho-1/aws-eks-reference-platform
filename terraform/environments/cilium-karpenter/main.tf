@@ -14,10 +14,10 @@ terraform {
     kubernetes = {
       source  = "hashicorp/kubernetes"
       version = ">= 2.0"
-    }        
+    }
     helm = {
       source  = "hashicorp/helm"
-      version = ">= 2.0"
+      version = ">= 3.0"
     }
     local = {
       source  = "hashicorp/local"
@@ -73,6 +73,7 @@ provider "flux" {
     ssh = {
       username    = "git"
       private_key = local.flux_ssh_private_key
+      password    = local.flux_ssh_private_key_passphrase
     }
   }
 }
@@ -96,8 +97,9 @@ locals {
   flux_git_password = var.enable_flux_gitops && var.flux_token_auth ? coalesce(var.github_token, "x") : "x"
   # When PAT: pass placeholder to SSH provider (unused). When SSH: read from file path or use inline key.
   flux_ssh_private_key = var.flux_token_auth ? " " : (
-    var.github_ssh_private_key_path != "" ? file(pathexpand(var.github_ssh_private_key_path)) : coalesce(var.github_ssh_private_key, " ")
+    trimspace(var.github_ssh_private_key_path) != "" ? file(pathexpand(var.github_ssh_private_key_path)) : coalesce(var.github_ssh_private_key, " ")
   )
+  flux_ssh_private_key_passphrase = var.flux_token_auth ? "" : var.github_ssh_private_key_passphrase
 
   # Flux provider requires URL scheme to match auth: https→http block, ssh→ssh block
   flux_git_url_https = replace(local.flux_git_url, "ssh://git@", "https://")
@@ -119,31 +121,31 @@ module "eks_cilium_karpenter" {
   source = "../../modules/eks-cilium-karpenter"
 
   providers = {
-    aws      = aws
-    aws.ecr  = aws.ecr
+    aws     = aws
+    aws.ecr = aws.ecr
   }
 
   name        = var.name
   environment = var.environment
 
-  vpc_cidr                 = var.vpc_cidr
-  create_database_subnets  = var.create_rds_postgres
-  kubernetes_version       = var.kubernetes_version
-  karpenter_node_desired_size = var.karpenter_node_desired_size
-  karpenter_node_min_size     = var.karpenter_node_min_size
-  karpenter_node_max_size     = var.karpenter_node_max_size
-  install_karpenter_helm      = var.install_karpenter_helm
-  karpenter_helm_chart_version = var.karpenter_helm_chart_version
-  cilium_egress_masquerade_interfaces  = var.cilium_egress_masquerade_interfaces
+  vpc_cidr                                  = var.vpc_cidr
+  create_database_subnets                   = var.create_rds_postgres
+  kubernetes_version                        = var.kubernetes_version
+  karpenter_node_desired_size               = var.karpenter_node_desired_size
+  karpenter_node_min_size                   = var.karpenter_node_min_size
+  karpenter_node_max_size                   = var.karpenter_node_max_size
+  install_karpenter_helm                    = var.install_karpenter_helm
+  karpenter_helm_chart_version              = var.karpenter_helm_chart_version
+  cilium_egress_masquerade_interfaces       = var.cilium_egress_masquerade_interfaces
   cilium_ipam_mode                          = var.cilium_ipam_mode
-  cilium_cluster_pool_ipv4_cidr       = var.cilium_cluster_pool_ipv4_cidr
-  cilium_encryption_enabled           = var.cilium_encryption_enabled
-  cilium_hubble_enabled              = var.cilium_hubble_enabled
+  cilium_cluster_pool_ipv4_cidr             = var.cilium_cluster_pool_ipv4_cidr
+  cilium_encryption_enabled                 = var.cilium_encryption_enabled
+  cilium_hubble_enabled                     = var.cilium_hubble_enabled
   cilium_prometheus_service_monitor_enabled = var.cilium_prometheus_service_monitor_enabled
   cilium_clustermesh_enabled                = var.cilium_clustermesh_enabled
-  cilium_cluster_name                      = var.cilium_cluster_name
-  cilium_cluster_id                        = var.cilium_cluster_id
-  cilium_clustermesh_peer_pod_cidrs        = var.cilium_clustermesh_peer_pod_cidrs
+  cilium_cluster_name                       = var.cilium_cluster_name
+  cilium_cluster_id                         = var.cilium_cluster_id
+  cilium_clustermesh_peer_pod_cidrs         = var.cilium_clustermesh_peer_pod_cidrs
 
   tags = merge(var.tags, { "Project" = var.project_tag })
 }

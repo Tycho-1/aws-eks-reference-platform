@@ -22,10 +22,10 @@ module "eks" {
 
   control_plane_subnet_ids = module.vpc.private_subnets
 
-  cluster_endpoint_public_access  = var.cluster_endpoint_public_access
-  cluster_endpoint_private_access  = var.cluster_endpoint_private_access
+  cluster_endpoint_public_access           = var.cluster_endpoint_public_access
+  cluster_endpoint_private_access          = var.cluster_endpoint_private_access
   enable_cluster_creator_admin_permissions = true
-  enable_irsa = true
+  enable_irsa                              = true
 
   cluster_security_group_additional_rules = {}
   node_security_group_additional_rules    = {}

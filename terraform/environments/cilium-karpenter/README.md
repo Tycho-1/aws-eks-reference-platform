@@ -8,7 +8,8 @@ Uses the **eks-cilium-karpenter** module. A default **NodePool** and **EC2NodeCl
 |------|---------|
 | `main.tf` | Terraform config, providers, eks-cilium-karpenter module |
 | `variables.tf` | Input variable definitions (defaults) |
-| `terraform.tfvars` | **Main variable values** — edit this for your environment; auto-loaded by `plan`/`apply` |
+| `terraform.tfvars.example` | **Example values** — copy to `terraform.tfvars` (gitignored); see below |
+| `terraform.tfvars.secrets.example` | Example for Flux tokens / SSH (copy to `terraform.tfvars.secrets`, gitignored) |
 | `outputs.tf` | Outputs (cluster, kubectl, Karpenter, RDS) |
 | `karpenter-nodepool.tf` | Generates `karpenter-default-nodepool.yaml` from template |
 | `karpenter-nodepool.yaml.tpl` | Template for NodePool + EC2NodeClass (AL2023) |
@@ -20,7 +21,15 @@ Run `terraform init`, `plan`, and `apply` from this directory.
 
 ## Variable files (terraform.tfvars)
 
-**`terraform.tfvars`** contains the main variables you typically want to customize. Terraform automatically loads it when you run `plan` or `apply` — no `-var-file` flag needed.
+**`terraform.tfvars` is not in Git** (local overrides). Start from the committed example:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+# optional, for Flux:
+cp terraform.tfvars.secrets.example terraform.tfvars.secrets
+```
+
+Edit `terraform.tfvars` for your cluster name, region, tags, etc. Terraform auto-loads it on `plan` / `apply`. For Flux credentials, use `-var-file=terraform.tfvars.secrets` or rename to `terraform.tfvars.secrets.auto.tfvars` for auto-load.
 
 **Different environments:** Use separate `.tfvars` files and pass them explicitly:
 
@@ -29,7 +38,7 @@ terraform plan -var-file=dev.tfvars
 terraform apply -var-file=prod.tfvars
 ```
 
-Example: copy `terraform.tfvars` to `dev.tfvars` and `prod.tfvars`, then edit each for that environment. Variables not in the file use the defaults from `variables.tf`.
+Variables not in your tfvars file use the defaults from `variables.tf`.
 
 ## Configuration overview
 
@@ -45,7 +54,7 @@ The CoreDNS patch runs automatically after `terraform apply` via a `null_resourc
 
 ## Variables
 
-Main variables are in **`terraform.tfvars`** — edit that file to change values. The full list with defaults is in `variables.tf`:
+Copy **`terraform.tfvars.example`** to **`terraform.tfvars`** (see [Variable files](#variable-files-terraformtfvars)), then edit your local `terraform.tfvars`. Variable **definitions** and Terraform defaults are in `variables.tf`; the example file shows typical values:
 
 - **name**, **environment**: Resource naming (default `jumbo-eks`, `dev`).
 - **aws_region**, **aws_profile**: Region and CLI profile (default `eu-central-1`, `null`).
@@ -55,11 +64,11 @@ Main variables are in **`terraform.tfvars`** — edit that file to change values
 - **karpenter_create_default_nodepool**: `true` (default) generates `karpenter-default-nodepool.yaml`; set `false` if you manage NodePool/EC2NodeClass via GitOps.
 - **karpenter_nodepool_limit_cpu**: Max CPU across workload nodes (default `"100"` for small testing; use `"1000"`+ for prod).
 - **karpenter_nodepool_limit_memory**: Max memory across workload nodes (default `"400Gi"` for small testing; use `"2000Gi"`+ for prod).
-- **cilium_egress_masquerade_interfaces**: Interface(s) for egress masquerading (default `eth0`). Use `eth0 ens+` or `ens+` for AL2023 nodes — the default NodePool uses AL2023.
+- **cilium_egress_masquerade_interfaces**: Interface(s) for egress masquerading (default `ens+` for AL2023, the only EKS-optimized AMI family on 1.33+). Use `eth0` only for legacy AL2 nodes.
 - **cilium_ipam_mode**: `eni` (default, VPC-native) or `cluster-pool` (overlay). ENI requires IRSA for cilium-operator with EC2 permissions.
 - **create_rds_postgres**: `false` (default). Set `true` to create an RDS PostgreSQL instance in database subnets (same VPC, separate from EKS). Create the cluster first, then add RDS later if needed.
 - **enable_flux_gitops**: `false` (default). Set `true` to bootstrap Flux via the Terraform provider after cluster creation. **Requires the GitHub repository to exist and be initialized in advance.**
-- **Flux variables** (when `enable_flux_gitops = true`): `flux_git_url`, `flux_path`, `flux_branch`, `flux_version`, `flux_token_auth`, `flux_git_username`, `flux_network_policy`. Secrets: `github_token` (PAT) or `github_ssh_private_key` — put in `terraform.tfvars.secrets`. See [docs/flux-gitops-automation-best-practices.md](../../docs/flux-gitops-automation-best-practices.md) for why `flux_network_policy` matters.
+- **Flux variables** (when `enable_flux_gitops = true`): `flux_git_url`, `flux_path`, `flux_branch`, `flux_version`, `flux_token_auth`, `flux_git_username`, `flux_network_policy`. Secrets in `terraform.tfvars.secrets`: `github_token` (PAT), or SSH via `github_ssh_private_key` / `github_ssh_private_key_path` and optional `github_ssh_private_key_passphrase` for encrypted keys. `flux_network_policy = true` restricts ingress to the Flux controllers with NetworkPolicies (enforced by Cilium).
 
 ## Optional Flux GitOps
 
@@ -70,19 +79,17 @@ Flux can be bootstrapped automatically via the Terraform provider. **Prerequisit
 
 **Setup:**
 
-1. Copy `terraform.tfvars.example` to `terraform.tfvars` and set:
+The example `terraform.tfvars.example` keeps Flux **off** (`enable_flux_gitops = false`) so a fresh clone can `plan` after `cp` without a Git repo or credentials. Personal settings go in gitignored files:
+
+1. Copy `terraform.tfvars.secrets.example` to `terraform.tfvars.secrets` (already in the repo-root `.gitignore`) and set:
    - `enable_flux_gitops = true`
    - `flux_git_url = "https://github.com/<owner>/<repo>.git"` (PAT) or `ssh://git@github.com/<owner>/<repo>.git` (SSH)
    - `flux_path = "clusters/jumbo-eks-dev"` (or leave empty to use `clusters/<cluster-name>`)
-   - `flux_token_auth = true` (default, PAT) or `false` (SSH deploy key)
-   - `flux_network_policy = true` (default) — creates NetworkPolicies to restrict traffic to Flux controllers; recommended for security (see docs).
-2. Copy `terraform.tfvars.secrets.example` to `terraform.tfvars.secrets` and add:
-   - **PAT:** `github_token` (when `flux_token_auth = true`)
-   - **SSH:** `github_ssh_private_key_path = "~/x/id_ed25519"` or `github_ssh_private_key` (inline heredoc); add public key as deploy key to the repo
-3. Add `terraform.tfvars.secrets` to `.gitignore` (see `.gitignore` in this directory).
-4. Run `terraform apply -var-file=terraform.tfvars.secrets` (or use `terraform.tfvars.secrets.auto.tfvars` for auto-load).
+   - **PAT:** `flux_token_auth = true`, `flux_git_username`, `github_token`
+   - **SSH:** `flux_token_auth = false`, `github_ssh_private_key_path = "~/.ssh/<key>"` (or inline `github_ssh_private_key`), `github_ssh_private_key_passphrase` if the key is encrypted; add the public key as a deploy key with write access
+2. Run `terraform apply -var-file=terraform.tfvars.secrets`. Values in that file override `terraform.tfvars`.
 
-Flux will install on the cluster and commit manifests to your Git repo. A `terraform-outputs` ConfigMap is created in `flux-system` for Flux Kustomizations to use via `postBuild.substituteFrom`. **EKS + Cilium patches are automated:** `flux-system-kustomization-override.yaml` is applied via `kustomization_override`, adding Flux controller `KUBERNETES_SERVICE_HOST` patches and the root Kustomization `postBuild` — no manual edits or pause/resume needed. See [docs/flux-gitops-automation-best-practices.md](../../docs/flux-gitops-automation-best-practices.md).
+Flux will install on the cluster and commit manifests to your Git repo. A `terraform-outputs` ConfigMap is created in `flux-system` for Flux Kustomizations to use via `postBuild.substituteFrom`. **EKS + Cilium patches are automated:** `flux-system-kustomization-override.yaml` is applied via `kustomization_override`, adding Flux controller `KUBERNETES_SERVICE_HOST` patches and the root Kustomization `postBuild` — no manual edits or pause/resume needed.
 
 ## Optional RDS PostgreSQL
 
@@ -114,6 +121,7 @@ Or use External Secrets / AWS Secrets Manager for production.
 1. **Terraform** (creates cluster, system node group, Karpenter):
 
    ```bash
+   cp terraform.tfvars.example terraform.tfvars   # first time only
    terraform init
    terraform apply
    ```
@@ -143,6 +151,31 @@ Or use External Secrets / AWS Secrets Manager for production.
 After that, Karpenter can provision workload nodes. The generated YAML is written to `karpenter-default-nodepool.yaml` in this directory (and listed in the output).
 
 4. **If Flux was enabled** (`enable_flux_gitops = true`): Flux is already running and syncing from your Git repo. Check with `flux get kustomizations`. Add Kustomizations/HelmReleases to your repo under the path you configured (`flux_path`). The `terraform-outputs` ConfigMap in `flux-system` provides cluster-specific values for `postBuild.substituteFrom`.
+
+## Teardown
+
+Karpenter-launched EC2 instances, the ENIs Cilium's operator attaches to them (ENI mode), and any load balancers created by Services are **not** in Terraform state. If they still exist, `terraform destroy` can hang on subnet/VPC deletion or leave billable resources behind. Remove them first:
+
+1. **Stop Flux from recreating workloads** (if enabled): `flux suspend kustomization --all`
+2. **Delete LoadBalancer Services / Ingresses** so their ELBs are released:
+   ```bash
+   kubectl get svc -A --field-selector spec.type=LoadBalancer
+   ```
+3. **Delete Karpenter NodePools** and wait until Karpenter has terminated its nodes:
+   ```bash
+   kubectl delete nodepools --all
+   kubectl get nodeclaims -w   # wait until empty
+   ```
+4. **Destroy** (pass the same var files used for apply):
+   ```bash
+   terraform destroy                                        # or: -var-file=terraform.tfvars.secrets
+   ```
+5. **If destroy stalls on subnet/VPC deletion**, look for detached (`available`) ENIs left in the VPC, delete them, and re-run destroy:
+   ```bash
+   aws ec2 describe-network-interfaces --filters Name=status,Values=available \
+     Name=vpc-id,Values=$(terraform output -raw vpc_id) --query 'NetworkInterfaces[].NetworkInterfaceId'
+   ```
+6. **Check for leftovers**: search the `Project = <project_tag>` tag in AWS Tag Editor / Resource Groups.
 
 
 ---
@@ -195,13 +228,13 @@ Cilium adds taints (`node.cilium.io/agent-not-ready`, `node.kubernetes.io/not-re
 The Cilium agent must reach the Kubernetes API. On EKS, the module sets `k8sServiceHost` (cluster endpoint host without `https://`) and `k8sServicePort: 443` explicitly. If you see agent crash loops:
 
 1. **Terraform fix**: Run `terraform apply` — the Cilium Helm values include the correct EKS API server config.
-2. **AL2023 nodes**: The default NodePool uses AL2023. If you see egress/connectivity issues, set `cilium_egress_masquerade_interfaces = "eth0 ens+"` or `"ens+"` in `variables.tf` (or `-var`). Default `eth0` is for AL2.
+2. **AL2023 nodes**: All nodes (system node group and the default NodePool) run AL2023, whose primary interface is `ens5`. Keep `cilium_egress_masquerade_interfaces = "ens+"` (default). `eth0` only matches legacy AL2 — with it, pod traffic to VPC addresses (including the EKS API ENIs) is not masqueraded in `cluster-pool` mode.
 
 ### Cilium agent: "required IPv4 PodCIDR not available"
 
-EKS does not assign `spec.podCIDR` to nodes when using a custom CNI (no VPC CNI). The module uses **cluster-pool IPAM** instead of kubernetes IPAM: Cilium assigns pod CIDRs via CiliumNode CRDs. If you see this after an older apply:
+EKS does not assign `spec.podCIDR` to nodes when using a custom CNI (no VPC CNI), so Cilium's `kubernetes` IPAM mode cannot work. The module never uses it: it runs **ENI IPAM** (default) or **cluster-pool IPAM** (Cilium assigns pod CIDRs via CiliumNode CRDs). If you see this error:
 
-1. **Terraform fix**: Run `terraform apply` — Cilium is now configured with `ipam.mode: cluster-pool` and `ipam.operator.clusterPoolIPv4PodCIDRList: ["100.64.0.0/16"]`.
+1. **Terraform fix**: Check `cilium_ipam_mode` is `eni` or `cluster-pool` and run `terraform apply`. For `cluster-pool`, the pool comes from `cilium_cluster_pool_ipv4_cidr` (default `100.64.0.0/16`).
 2. **Custom CIDR**: Override `cilium_cluster_pool_ipv4_cidr` if 100.64.0.0/16 conflicts with your network. Use CG-NAT space (100.64.0.0/10) or another non-overlapping range.
 
 ### CoreDNS: "dial tcp ... i/o timeout" / "Still waiting on: kubernetes"

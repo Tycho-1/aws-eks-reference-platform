@@ -12,7 +12,9 @@ Base requirements for the EKS reference platform, aligned with container platfor
 | **CoreDNS** | Cluster DNS; EKS addon with EKS-specific workarounds where needed (e.g. Cilium kube-proxy replacement) | ✅ |
 | **Cilium** | CNI and kube-proxy replacement; networking, network policies, observability (Hubble) | ✅ (cilium-karpenter env) |
 | **Karpenter** | Node autoscaling; provisions EC2 nodes based on pod demand | ✅ (cilium-karpenter env) |
-| **VPC CNI** | Alternative CNI; default AWS pod networking | ✅ (default env) |
+| **VPC CNI** | Alternative CNI; default AWS pod networking | ✅ (default env; reference only, not tested) |
+| **Flux GitOps** | Declarative cluster and workload deployment from Git | ✅ optional (`cilium-karpenter` env; `enable_flux_gitops`) |
+| **RDS PostgreSQL** | Optional database in VPC database subnets | ✅ optional (`rds-postgres` module; `create_rds_postgres`) |
 
 ---
 
@@ -28,8 +30,11 @@ Base requirements for the EKS reference platform, aligned with container platfor
 
 ## GitOps & Deployment
 
-- GitOps deployment patterns (e.g. Flux, Argo CD, or manual Helm/Kustomize)
-- Declarative cluster and workload configuration
+| Component | Status |
+|-----------|--------|
+| **Flux** | ✅ Bootstrap via Terraform in `cilium-karpenter` env (optional flag) |
+| **Argo CD** | Not implemented |
+| **Helm / Kustomize** | ✅ Used for Cilium, Karpenter; Flux fleet repo is external |
 
 ---
 
@@ -69,13 +74,15 @@ Base requirements for the EKS reference platform, aligned with container platfor
 
 ## Optional / Future Additions
 
-- **RDS** — Database in VPC (rds-postgres module available)
-- **External Secrets Operator** — Helm install; integrate with Secrets Manager
+- **External Secrets Operator** — Helm install; integrate with Secrets Manager (RDS creds out of TF state)
 - **Kyverno** — Policy enforcement
-- **Flux / Argo CD** — Full GitOps automation
+- **Argo CD** — Alternative GitOps controller
+- **ALB Ingress Controller** — L2 cluster entry
+- **VPC endpoints** — Reduce NAT dependency for private clusters
+- **Observability stack** — Prometheus/Grafana or Datadog
 
 ---
 
 ## Summary
 
-The **cilium-karpenter** environment provides: EKS + Cilium + Karpenter + CoreDNS. The **default** environment provides: EKS + VPC CNI. Both use Terraform and Helm. Additional components (External Secrets, Kyverno, observability agents) can be layered on top via Helm or GitOps.
+The **cilium-karpenter** environment provides: EKS + Cilium (Helm) + Karpenter + CoreDNS, with optional Flux GitOps and optional RDS PostgreSQL. The **default** environment provides: EKS + VPC CNI (reference only). Both wrap the community `terraform-aws-modules/eks` module. Additional components (External Secrets, Kyverno, observability agents) can be layered on top via Helm or GitOps.

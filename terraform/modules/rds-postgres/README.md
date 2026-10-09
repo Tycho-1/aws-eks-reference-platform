@@ -99,6 +99,8 @@ module "rds_postgres" {
 | engine_version | PostgreSQL version | `16` |
 | db_name | Default database name | `app` |
 | username | Master username | `postgres` |
+| skip_final_snapshot | Skip final snapshot on destroy (`false` → snapshot `<identifier>-final`) | `true` |
+| deletion_protection | RDS deletion protection | `false` |
 | tags | Resource tags | `{}` |
 
 ---

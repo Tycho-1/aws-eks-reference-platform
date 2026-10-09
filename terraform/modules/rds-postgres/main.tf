@@ -57,5 +57,10 @@ resource "aws_db_instance" "postgres" {
   backup_retention_period = 7
   storage_encrypted       = true
 
+  # Without one of these, terraform destroy fails (AWS requires a final snapshot name).
+  skip_final_snapshot       = var.skip_final_snapshot
+  final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.identifier}-final"
+  deletion_protection       = var.deletion_protection
+
   tags = var.tags
 }

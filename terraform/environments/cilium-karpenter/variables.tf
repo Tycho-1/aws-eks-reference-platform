@@ -94,15 +94,15 @@ variable "karpenter_nodepool_limit_memory" {
 }
 
 variable "cilium_egress_masquerade_interfaces" {
-  description = "Interface(s) for Cilium egress masquerading. Use eth0 for AL2 (default), ens+ or en+ for AL2023."
+  description = "Interface(s) for Cilium egress masquerading. ens+ for AL2023 (default; EKS 1.33+); eth0 for legacy AL2."
   type        = string
-  default     = "eth0"
+  default     = "ens+"
 }
 
 variable "cilium_ipam_mode" {
-  description = "Cilium IPAM mode: 'cluster-pool' (default, overlay) or 'eni' (VPC-native). ENI requires IRSA for cilium-operator with EC2 permissions."
+  description = "Cilium IPAM mode: 'eni' (default, VPC-native) or 'cluster-pool' (overlay). ENI requires IRSA for cilium-operator with EC2 permissions."
   type        = string
-  default     = "cluster-pool"
+  default     = "eni"
 
   validation {
     condition     = contains(["cluster-pool", "eni"], var.cilium_ipam_mode)
@@ -295,6 +295,13 @@ variable "github_ssh_private_key" {
 
 variable "github_ssh_private_key_path" {
   description = "Path to SSH private key file (e.g. ~/x/id_ed25519). Alternative to github_ssh_private_key; Terraform reads the file. Use when flux_token_auth = false."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "github_ssh_private_key_passphrase" {
+  description = "Passphrase for an encrypted SSH private key (Flux SSH auth). Empty string for passwordless keys. Put in terraform.tfvars.secrets — do NOT commit."
   type        = string
   default     = ""
   sensitive   = true

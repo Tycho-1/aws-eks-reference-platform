@@ -1,7 +1,10 @@
 # -----------------------------------------------------------------------------
-# Main variables — edit these for your environment.
-# Terraform automatically loads this file when you run plan/apply.
-# For different environments, use: terraform plan -var-file=dev.tfvars
+# Example variable values — copy to terraform.tfvars and edit (terraform.tfvars is gitignored).
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Terraform auto-loads terraform.tfvars on plan/apply. For Flux secrets, see
+# terraform.tfvars.secrets.example. Other envs: terraform plan -var-file=dev.tfvars
 # -----------------------------------------------------------------------------
 
 # Cluster identity
@@ -24,16 +27,16 @@ karpenter_node_min_size     = 1
 karpenter_node_max_size     = 3
 
 # Karpenter workload nodes (provisioned by Karpenter)
-karpenter_workload_capacity_type   = "spot" # spot | on_demand | spot_and_on_demand
-karpenter_create_default_nodepool  = true
-karpenter_nodepool_limit_cpu       = "100"
-karpenter_nodepool_limit_memory    = "400Gi"
+karpenter_workload_capacity_type  = "spot" # spot | on_demand | spot_and_on_demand
+karpenter_create_default_nodepool = true
+karpenter_nodepool_limit_cpu      = "100"
+karpenter_nodepool_limit_memory   = "400Gi"
 
 # Cilium
-cilium_egress_masquerade_interfaces       = "ens+"  # AL2023 nodes (EKS 1.30+); use "eth0" for AL2 AMI
-cilium_ipam_mode                          = "eni"   # default; or "cluster-pool" for overlay (Cilium assigns pod CIDRs)
-cilium_cluster_pool_ipv4_cidr             = ""      # only used when cilium_ipam_mode = "cluster-pool"
-cilium_encryption_enabled                 = true 
+cilium_egress_masquerade_interfaces       = "ens+"          # AL2023 nodes (EKS 1.33+); use "eth0" for AL2 AMI
+cilium_ipam_mode                          = "eni"           # default; or "cluster-pool" for overlay (Cilium assigns pod CIDRs)
+cilium_cluster_pool_ipv4_cidr             = "100.64.0.0/16" # only used when cilium_ipam_mode = "cluster-pool"
+cilium_encryption_enabled                 = true
 cilium_hubble_enabled                     = true
 cilium_prometheus_service_monitor_enabled = false
 
@@ -56,18 +59,18 @@ rds_username          = "postgres"
 project_tag = "jumbo-eks-demo"
 
 # -----------------------------------------------------------------------------
-# Flux GitOps (optional)
+# Flux GitOps (optional) — off by default so a fresh clone plans without a Git repo or keys.
+# To enable: set enable_flux_gitops = true, point flux_git_url at your fleet repo, and put
+# credentials in terraform.tfvars.secrets (see terraform.tfvars.secrets.example).
 # -----------------------------------------------------------------------------
-enable_flux_gitops  = true
-flux_git_url        = "https://github.com/Tycho-1/flux-fleet.git" # example github url | to be changed by user
-flux_path           = "clusters/jumbo-eks-dev"
+enable_flux_gitops  = false
+flux_git_url        = "" # e.g. "https://github.com/<owner>/flux-fleet.git" or "ssh://git@github.com/<owner>/flux-fleet.git"
+flux_path           = "" # empty → clusters/<cluster-name>
 flux_branch         = "main"
 flux_namespace      = "flux-system"
 flux_version        = "v2.7.5"
 flux_interval       = "1m0s"
-flux_network_policy = true 
-flux_token_auth     = false
+flux_network_policy = true
+flux_token_auth     = true # true = PAT (github_token), false = SSH deploy key
 flux_git_username   = "git"
 # github_token / github_ssh_private_key_path → terraform.tfvars.secrets
-# Or set path here (prefer terraform.tfvars.secrets for sensitive path):
-github_ssh_private_key_path = "~/x/id_ed_xxx"  # example path to private key | to be changed by user

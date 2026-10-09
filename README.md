@@ -59,14 +59,15 @@ Run `terraform init`, `plan`, and `apply` from **inside an environment**, not fr
 
 ```bash
 cd terraform/environments/cilium-karpenter
+cp terraform.tfvars.example terraform.tfvars   # first time only; file is gitignored
 terraform init
 terraform plan -out=plan
 # terraform apply plan
 ```
 
-*(Other options: `default` for VPC CNI–only.)*
+*(Other options: `default` for VPC CNI–only — same `cp terraform.tfvars.example terraform.tfvars` there.)*
 
-Credentials: use default AWS profile or env vars; optionally set `aws_profile` in `terraform.tfvars` (default `null`). Main variables are in `terraform.tfvars`; use `-var-file=dev.tfvars` for environment-specific config.
+Credentials: use default AWS profile or env vars; optionally set `aws_profile` in `terraform.tfvars` (default `null` in the example). Committed templates are `terraform.tfvars.example` and `terraform.tfvars.secrets.example` (Flux). Use `-var-file=dev.tfvars` for extra environment-specific config.
 
 **Plan: simple list of resources to be created** (requires `jq`):
 

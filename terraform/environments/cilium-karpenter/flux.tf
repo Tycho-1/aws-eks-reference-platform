@@ -5,7 +5,8 @@
 # - GitHub repository must exist and be initialized (at least one commit).
 # - Auth (choose one via flux_token_auth in tfvars):
 #   - PAT (default): github_token, flux_git_url = "https://github.com/owner/repo.git"
-#   - SSH: github_ssh_private_key, flux_git_url = "ssh://git@github.com/owner/repo.git"
+#   - SSH: github_ssh_private_key or github_ssh_private_key_path; optional github_ssh_private_key_passphrase
+#     flux_git_url = "ssh://git@github.com/owner/repo.git"
 #     Add the public key as a deploy key to the repo.
 #
 # Secrets go in terraform.tfvars.secrets — do NOT commit. See terraform.tfvars.secrets.example

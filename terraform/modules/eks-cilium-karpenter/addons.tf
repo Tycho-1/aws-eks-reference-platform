@@ -45,7 +45,7 @@ resource "aws_eks_addon" "eks_pod_identity_agent" {
   cluster_name = module.eks.cluster_name
   addon_name   = "eks-pod-identity-agent"
 
-  addon_version        = data.aws_eks_addon_version.eks_pod_identity_agent.version
+  addon_version               = data.aws_eks_addon_version.eks_pod_identity_agent.version
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
 
@@ -57,8 +57,8 @@ resource "aws_eks_addon" "eks_pod_identity_agent" {
 # Without this patch, CoreDNS hangs on "Still waiting on kubernetes" and the addon never completes.
 resource "null_resource" "coredns_cilium_patch" {
   triggers = {
-    cluster_name   = module.eks.cluster_name
-    endpoint_host  = replace(replace(module.eks.cluster_endpoint, "https://", ""), "http://", "")
+    cluster_name  = module.eks.cluster_name
+    endpoint_host = replace(replace(module.eks.cluster_endpoint, "https://", ""), "http://", "")
   }
 
   provisioner "local-exec" {

@@ -80,14 +80,14 @@ module "eks" {
 
   eks_managed_node_groups = var.enable_default_node_group ? {
     default = {
-      name            = "default"
-      instance_types  = var.node_group_instance_types
-      capacity_type   = "ON_DEMAND"
-      desired_size    = var.node_group_desired_size
-      min_size        = var.node_group_min_size
-      max_size        = var.node_group_max_size
-      disk_size       = var.node_group_disk_size
-      subnet_ids      = module.vpc.private_subnets
+      name                       = "default"
+      instance_types             = var.node_group_instance_types
+      capacity_type              = "ON_DEMAND"
+      desired_size               = var.node_group_desired_size
+      min_size                   = var.node_group_min_size
+      max_size                   = var.node_group_max_size
+      disk_size                  = var.node_group_disk_size
+      subnet_ids                 = module.vpc.private_subnets
       use_custom_launch_template = false
     }
   } : {}

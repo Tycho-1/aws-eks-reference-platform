@@ -10,12 +10,10 @@ data "aws_availability_zones" "available" {
 
 locals {
   azs = length(var.availability_zones) > 0 ? var.availability_zones : slice(data.aws_availability_zones.available.names, 0, 2)
-  # Derive private/public CIDRs from vpc_cidr if not provided
-  vpc_octets = [for s in split(".", split("/", var.vpc_cidr)[0]) : tonumber(s)]
-  vpc_prefix = tonumber(split("/", var.vpc_cidr)[1])
-  # e.g. 10.0.0.0/16 -> private 10.0.1.0/24, 10.0.2.0/24; public 10.0.101.0/24, 10.0.102.0/24
-  private_cidrs = length(var.private_subnet_cidrs) > 0 ? var.private_subnet_cidrs : [for i, az in local.azs : "10.0.${1 + i}.0/24"]
-  public_cidrs  = length(var.public_subnet_cidrs) > 0 ? var.public_subnet_cidrs : [for i, az in local.azs : "10.0.${100 + 1 + i}.0/24"]
+  # /24s carved from vpc_cidr (assumes a /16), e.g. 10.0.0.0/16 -> private 10.0.1.0/24, 10.0.2.0/24;
+  # public 10.0.101.0/24, 10.0.102.0/24
+  private_cidrs = length(var.private_subnet_cidrs) > 0 ? var.private_subnet_cidrs : [for i, az in local.azs : cidrsubnet(var.vpc_cidr, 8, 1 + i)]
+  public_cidrs  = length(var.public_subnet_cidrs) > 0 ? var.public_subnet_cidrs : [for i, az in local.azs : cidrsubnet(var.vpc_cidr, 8, 101 + i)]
 }
 
 module "vpc" {
