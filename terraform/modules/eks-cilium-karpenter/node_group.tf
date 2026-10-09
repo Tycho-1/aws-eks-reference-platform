@@ -9,10 +9,10 @@ module "karpenter_node_group" {
 
   depends_on = [helm_release.cilium]
 
-  cluster_name    = module.eks.cluster_name
-  cluster_version = module.eks.cluster_version
-  cluster_endpoint = module.eks.cluster_endpoint
-  cluster_auth_base64 = module.eks.cluster_certificate_authority_data
+  cluster_name         = module.eks.cluster_name
+  cluster_version      = module.eks.cluster_version
+  cluster_endpoint     = module.eks.cluster_endpoint
+  cluster_auth_base64  = module.eks.cluster_certificate_authority_data
   cluster_service_cidr = coalesce(module.eks.cluster_service_cidr, "172.20.0.0/16")
 
   name            = "karpenter-system"
@@ -24,9 +24,9 @@ module "karpenter_node_group" {
   max_size     = var.karpenter_node_max_size
   desired_size = var.karpenter_node_desired_size
 
-  instance_types  = var.karpenter_node_instance_types
-  capacity_type   = "ON_DEMAND"
-  disk_size       = 50
+  instance_types = var.karpenter_node_instance_types
+  capacity_type  = "ON_DEMAND"
+  disk_size      = 50
 
   use_custom_launch_template = false
 

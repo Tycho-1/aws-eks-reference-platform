@@ -17,11 +17,11 @@ resource "local_file" "karpenter_nodepool_yaml" {
   count = var.karpenter_create_default_nodepool ? 1 : 0
 
   content = templatefile("${path.module}/karpenter-nodepool.yaml.tpl", {
-    cluster_name               = module.eks_cilium_karpenter.cluster_name
-    node_iam_role_name         = module.eks_cilium_karpenter.karpenter_node_iam_role_name
-    capacity_type_values_yaml   = join("\n", [for v in local.karpenter_workload_values : "            - ${v}"])
-    nodepool_limit_cpu         = var.karpenter_nodepool_limit_cpu
-    nodepool_limit_memory      = var.karpenter_nodepool_limit_memory
+    cluster_name              = module.eks_cilium_karpenter.cluster_name
+    node_iam_role_name        = module.eks_cilium_karpenter.karpenter_node_iam_role_name
+    capacity_type_values_yaml = join("\n", [for v in local.karpenter_workload_values : "            - ${v}"])
+    nodepool_limit_cpu        = var.karpenter_nodepool_limit_cpu
+    nodepool_limit_memory     = var.karpenter_nodepool_limit_memory
   })
   filename             = "${path.module}/karpenter-default-nodepool.yaml"
   file_permission      = "0644"

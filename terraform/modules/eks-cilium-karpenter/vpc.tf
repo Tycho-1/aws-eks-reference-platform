@@ -1,5 +1,6 @@
 # -----------------------------------------------------------------------------
-# VPC and subnets for EKS (public + private). Private subnets tagged for Karpenter discovery.
+# VPC: private subnets for EKS nodes; public subnets only for NAT (egress). Not public workloads.
+# Private subnets tagged for Karpenter discovery.
 # -----------------------------------------------------------------------------
 
 data "aws_region" "current" {}
@@ -9,13 +10,13 @@ data "aws_availability_zones" "available" {
 }
 
 locals {
-  cluster_name    = "${var.name}-${var.environment}"
-  azs             = length(var.availability_zones) > 0 ? var.availability_zones : slice(data.aws_availability_zones.available.names, 0, 2)
-  vpc_octets      = [for s in split(".", split("/", var.vpc_cidr)[0]) : tonumber(s)]
-  vpc_prefix      = tonumber(split("/", var.vpc_cidr)[1])
-  private_cidrs   = length(var.private_subnet_cidrs) > 0 ? var.private_subnet_cidrs : [for i, az in local.azs : "10.0.${1 + i}.0/24"]
-  public_cidrs    = length(var.public_subnet_cidrs) > 0 ? var.public_subnet_cidrs : [for i, az in local.azs : "10.0.${100 + 1 + i}.0/24"]
-  database_cidrs  = length(var.database_subnet_cidrs) > 0 ? var.database_subnet_cidrs : [for i, az in local.azs : "10.0.${11 + i}.0/24"]
+  cluster_name = "${var.name}-${var.environment}"
+  azs          = length(var.availability_zones) > 0 ? var.availability_zones : slice(data.aws_availability_zones.available.names, 0, 2)
+  # /24s carved from vpc_cidr (assumes a /16), e.g. 10.0.0.0/16 -> private 10.0.1-2.0/24,
+  # database 10.0.11-12.0/24, public 10.0.101-102.0/24
+  private_cidrs  = length(var.private_subnet_cidrs) > 0 ? var.private_subnet_cidrs : [for i, az in local.azs : cidrsubnet(var.vpc_cidr, 8, 1 + i)]
+  public_cidrs   = length(var.public_subnet_cidrs) > 0 ? var.public_subnet_cidrs : [for i, az in local.azs : cidrsubnet(var.vpc_cidr, 8, 101 + i)]
+  database_cidrs = length(var.database_subnet_cidrs) > 0 ? var.database_subnet_cidrs : [for i, az in local.azs : cidrsubnet(var.vpc_cidr, 8, 11 + i)]
 }
 
 module "vpc" {
@@ -25,9 +26,9 @@ module "vpc" {
   name = local.cluster_name
   cidr = var.vpc_cidr
 
-  azs             = local.azs
-  private_subnets = local.private_cidrs
-  public_subnets  = local.public_cidrs
+  azs              = local.azs
+  private_subnets  = local.private_cidrs
+  public_subnets   = local.public_cidrs
   database_subnets = var.create_database_subnets ? local.database_cidrs : []
 
   create_database_subnet_group       = var.create_database_subnets

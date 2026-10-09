@@ -27,7 +27,7 @@ locals {
           - ${var.cilium_cluster_pool_ipv4_cidr}
         clusterPoolIPv4MaskSize: 24
     YAML
-  cilium_ipam_eni = <<-YAML
+  cilium_ipam_eni          = <<-YAML
     # ENI: pods get real VPC IPs directly; no overlay, no masquerade needed.
     # Requires cilium-operator IRSA (see below) with EC2 permissions to manage ENIs.
     # Admission webhooks (Kyverno, cert-manager, Istio, etc.) work because the EKS
@@ -40,7 +40,7 @@ locals {
       iamRole: ${local.cilium_operator_role_arn}
     routingMode: native
     YAML
-  cilium_ipam_yaml = var.cilium_ipam_mode == "cluster-pool" ? local.cilium_ipam_cluster_pool : local.cilium_ipam_eni
+  cilium_ipam_yaml         = var.cilium_ipam_mode == "cluster-pool" ? local.cilium_ipam_cluster_pool : local.cilium_ipam_eni
 }
 
 # -----------------------------------------------------------------------------
@@ -68,10 +68,7 @@ data "aws_iam_policy_document" "cilium_operator_eni" {
       "ec2:DescribeSecurityGroups",
       "ec2:DescribeTags",
       "ec2:DescribeVpcPeeringConnections",
-      # Route tables — required for routingMode: native (ENI mode installs VPC routes for pod IPs)
       "ec2:DescribeRouteTables",
-      "ec2:CreateRoute",
-      "ec2:DeleteRoute",
       # Write — manage ENIs and secondary IPs for pods
       "ec2:CreateNetworkInterface",
       "ec2:DeleteNetworkInterface",

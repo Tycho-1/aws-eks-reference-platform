@@ -4,7 +4,7 @@ Internal Terraform module: EKS with **Cilium** CNI and **Karpenter** for autosca
 
 ## What it does
 
-- **VPC**: Public + private subnets; private subnets tagged `karpenter.sh/discovery` for Karpenter. Optional database subnets when `create_database_subnets = true` (for RDS).
+- **VPC**: **Private subnets** for EKS nodes and workloads (no nodes in public subnets). Public subnets exist only for NAT gateways (private egress to the internet). Private subnets are tagged `karpenter.sh/discovery` for Karpenter. Optional database subnets when `create_database_subnets = true` (for RDS).
 - **EKS**: Cluster with **CoreDNS** and **eks-pod-identity-agent** addons only. **No VPC CNI, no kube-proxy** — Cilium replaces both as CNI and handles service routing (kube-proxy replacement).
 - **System node group**: One managed node group labeled `karpenter.sh/controller: "true"` — runs only the Karpenter controller (Karpenter does not manage these nodes).
 - **Karpenter**: IAM (controller + node role), SQS queue, EventBridge rules, Pod Identity association. Optionally installs Karpenter Helm chart from this module (`install_karpenter_helm = true`).
@@ -17,10 +17,10 @@ Cilium is deployed via **Helm** (not as an AWS EKS addon — AWS does not offer 
 |--------|-------------|
 | **Deployment method** | Helm chart (`helm.cilium.io`), version 1.18.6 |
 | **VPC CNI** | Not used — Cilium replaces it as the CNI |
-| **IPAM** | `cluster-pool` — Cilium assigns pod CIDRs via CiliumNode CRDs (EKS does not set `spec.podCIDR` when using custom CNI) |
+| **IPAM** | `eni` (default) — pods get VPC IPs from ENIs managed by cilium-operator (IRSA role in `cilium.tf`). Alternative `cluster-pool` — Cilium assigns overlay pod CIDRs via CiliumNode CRDs (EKS does not set `spec.podCIDR` when using a custom CNI) |
 | **Kube-proxy** | Replaced — Cilium handles ClusterIP, NodePort, LoadBalancer routing via eBPF |
 | **EKS API access** | `k8sServiceHost` and `k8sServicePort` set to the cluster endpoint (required; no `https://` prefix) |
-| **Egress masquerading** | Configurable via `cilium_egress_masquerade_interfaces`; default `eth0 ens+` supports both AL2 and AL2023 |
+| **Egress masquerading** | Configurable via `cilium_egress_masquerade_interfaces`; default `ens+` (AL2023); use `eth0` for legacy AL2 |
 | **Hubble** | Enabled by default (`cilium_hubble_enabled`). Flow visibility and metrics. Use `cilium hubble ui` (port-forward) or `cilium hubble observe` to view flows. |
 | **Encryption** | Optional WireGuard pod-to-pod encryption (`cilium_encryption_enabled`, default `true`). |
 | **Cluster Mesh** | Optional multi-cluster connectivity (`cilium_clustermesh_enabled`, default `false`). |
@@ -128,7 +128,7 @@ module "eks_cilium_karpenter" {
 }
 ```
 
-**Key variables:** `karpenter_node_desired_size` (default 2), `karpenter_node_min_size` (1), `karpenter_node_max_size` (3), `install_karpenter_helm` (true), `karpenter_helm_chart_version` (1.6.0). Cilium: `cilium_egress_masquerade_interfaces` (default `eth0 ens+`), `cilium_encryption_enabled` (true), `cilium_hubble_enabled` (true). Optional: `create_database_subnets` for RDS, `cilium_clustermesh_enabled` for multi-cluster.
+**Key variables:** `karpenter_node_desired_size` (default 2), `karpenter_node_min_size` (1), `karpenter_node_max_size` (3), `install_karpenter_helm` (true), `karpenter_helm_chart_version` (1.6.0). Cilium: `cilium_ipam_mode` (default `eni`), `cilium_egress_masquerade_interfaces` (default `ens+`), `cilium_encryption_enabled` (true), `cilium_hubble_enabled` (true). Optional: `create_database_subnets` for RDS, `cilium_clustermesh_enabled` for multi-cluster.
 
 ## After apply
 

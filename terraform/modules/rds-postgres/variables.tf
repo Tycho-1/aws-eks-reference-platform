@@ -58,6 +58,18 @@ variable "username" {
   default     = "postgres"
 }
 
+variable "skip_final_snapshot" {
+  description = "Skip the final snapshot on destroy. true for demo/dev (clean destroy); false for prod (snapshot named <identifier>-final)."
+  type        = bool
+  default     = true
+}
+
+variable "deletion_protection" {
+  description = "Enable RDS deletion protection. Must be set false (and applied) before the instance can be destroyed."
+  type        = bool
+  default     = false
+}
+
 variable "security_group_name_prefix" {
   description = "Prefix for the RDS security group name."
   type        = string

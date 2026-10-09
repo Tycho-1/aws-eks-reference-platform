@@ -27,7 +27,7 @@ module "eks_platform" {
   kubernetes_version = var.kubernetes_version
   cni_type           = "vpc-cni" # default AWS VPC CNI
 
-  enable_default_node_group  = var.enable_default_node_group
+  enable_default_node_group = var.enable_default_node_group
   node_group_instance_types = var.node_group_instance_types
   node_group_desired_size   = var.node_group_desired_size
   node_group_min_size       = var.node_group_min_size

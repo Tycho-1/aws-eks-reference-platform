@@ -8,14 +8,20 @@ Uses the **eks-platform** module with `cni_type = "vpc-cni"`. Standard EKS setup
 |------|---------|
 | `main.tf` | Terraform config, providers, eks-platform module |
 | `variables.tf` | Input variable definitions (defaults) |
-| `terraform.tfvars` | **Main variable values** — edit this for your environment; auto-loaded by `plan`/`apply` |
+| `terraform.tfvars.example` | **Example values** — copy to `terraform.tfvars` (gitignored); see below |
 | `outputs.tf` | Outputs (cluster, kubectl) |
 
 Run `terraform init`, `plan`, and `apply` from this directory.
 
 ## Variable files (terraform.tfvars)
 
-**`terraform.tfvars`** contains the main variables you typically want to customize. Terraform automatically loads it when you run `plan` or `apply` — no `-var-file` flag needed.
+**`terraform.tfvars` is not in Git.** Copy the example and edit locally:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
+
+Terraform auto-loads `terraform.tfvars` on `plan` / `apply`.
 
 **Different environments:** Use separate `.tfvars` files and pass them explicitly:
 
@@ -24,7 +30,7 @@ terraform plan -var-file=dev.tfvars
 terraform apply -var-file=prod.tfvars
 ```
 
-Example: copy `terraform.tfvars` to `dev.tfvars` and `prod.tfvars`, then edit each for that environment. Variables not in the file use the defaults from `variables.tf`.
+Variables not in your tfvars file use the defaults from `variables.tf`.
 
 ## Configuration overview
 
@@ -36,7 +42,7 @@ Example: copy `terraform.tfvars` to `dev.tfvars` and `prod.tfvars`, then edit ea
 
 ## Variables
 
-Main variables are in **`terraform.tfvars`** — edit that file to change values. The full list with defaults is in `variables.tf`:
+Copy **`terraform.tfvars.example`** to **`terraform.tfvars`** (see [Variable files](#variable-files-terraformtfvars)), then edit your local file. Definitions and defaults are in `variables.tf`; the example lists typical values:
 
 - **name**, **environment**: Resource naming (default `jumbo-eks`, `dev`).
 - **aws_region**, **aws_profile**: Region and CLI profile (default `eu-central-1`, `null`).
@@ -50,6 +56,7 @@ Main variables are in **`terraform.tfvars`** — edit that file to change values
 1. **Terraform** (creates cluster and node group):
 
    ```bash
+   cp terraform.tfvars.example terraform.tfvars   # first time only
    terraform init
    terraform apply
    ```

@@ -94,15 +94,15 @@ variable "karpenter_nodepool_limit_memory" {
 }
 
 variable "cilium_egress_masquerade_interfaces" {
-  description = "Interface(s) for Cilium egress masquerading. Use eth0 for AL2 (default), ens+ or en+ for AL2023."
+  description = "Interface(s) for Cilium egress masquerading. ens+ for AL2023 (default; EKS 1.33+); eth0 for legacy AL2."
   type        = string
-  default     = "eth0"
+  default     = "ens+"
 }
 
 variable "cilium_ipam_mode" {
-  description = "Cilium IPAM mode: 'cluster-pool' (default, overlay) or 'eni' (VPC-native). ENI requires IRSA for cilium-operator with EC2 permissions."
+  description = "Cilium IPAM mode: 'eni' (default, VPC-native) or 'cluster-pool' (overlay). ENI requires IRSA for cilium-operator with EC2 permissions."
   type        = string
-  default     = "cluster-pool"
+  default     = "eni"
 
   validation {
     condition     = contains(["cluster-pool", "eni"], var.cilium_ipam_mode)

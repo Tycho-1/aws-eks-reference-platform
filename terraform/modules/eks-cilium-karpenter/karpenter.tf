@@ -15,8 +15,8 @@ module "karpenter" {
   cluster_name = module.eks.cluster_name
 
   # Node IAM role name must match what you use in Karpenter EC2NodeClass (nodePool)
-  node_iam_role_use_name_prefix = false
-  node_iam_role_name            = "${local.cluster_name}-karpenter-node"
+  node_iam_role_use_name_prefix   = false
+  node_iam_role_name              = "${local.cluster_name}-karpenter-node"
   create_pod_identity_association = true
 
   # With Cilium we do not use AWS VPC CNI; do not attach AmazonEKS_CNI_Policy to Karpenter node role

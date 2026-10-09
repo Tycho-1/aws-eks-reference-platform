@@ -142,15 +142,15 @@ variable "install_karpenter_helm" {
 # -----------------------------------------------------------------------------
 
 variable "cilium_egress_masquerade_interfaces" {
-  description = "Interface(s) for egress masquerading. eth0 for AL2, ens+ for AL2023. Default eth0 ens+ supports both."
+  description = "Interface(s) for egress masquerading. ens+ for AL2023 (the only EKS-optimized AMI family on 1.33+); eth0 for legacy AL2."
   type        = string
-  default     = "eth0 ens+"
+  default     = "ens+"
 }
 
 variable "cilium_ipam_mode" {
-  description = "Cilium IPAM mode: 'cluster-pool' (default, overlay, Cilium assigns pod CIDRs via CiliumNode) or 'eni' (VPC-native, pods get IPs from VPC subnets). ENI requires IRSA for cilium-operator with EC2 permissions."
+  description = "Cilium IPAM mode: 'eni' (default, VPC-native, pods get IPs from VPC subnets) or 'cluster-pool' (overlay, Cilium assigns pod CIDRs via CiliumNode). ENI requires IRSA for cilium-operator with EC2 permissions."
   type        = string
-  default     = "cluster-pool"
+  default     = "eni"
 
   validation {
     condition     = contains(["cluster-pool", "eni"], var.cilium_ipam_mode)

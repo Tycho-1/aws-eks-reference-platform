@@ -8,9 +8,9 @@ module "rds_postgres" {
 
   create = var.create_rds_postgres
 
-  vpc_id                    = module.eks_cilium_karpenter.vpc_id
+  vpc_id                     = module.eks_cilium_karpenter.vpc_id
   allowed_security_group_ids = [module.eks_cilium_karpenter.node_security_group_id]
-  db_subnet_group_name      = var.create_rds_postgres ? module.eks_cilium_karpenter.database_subnet_group_name : "unused"
+  db_subnet_group_name       = var.create_rds_postgres ? module.eks_cilium_karpenter.database_subnet_group_name : "unused"
 
   identifier                 = "${var.name}-${var.environment}-postgres"
   security_group_name_prefix = "${var.name}-${var.environment}-rds-"
