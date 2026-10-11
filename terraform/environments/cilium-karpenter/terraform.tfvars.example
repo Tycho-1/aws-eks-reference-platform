@@ -18,13 +18,16 @@ aws_profile = null # Use default profile; set to "my-profile" if needed
 # Network
 vpc_cidr = "10.0.0.0/16"
 
-# EKS
-kubernetes_version = "1.34"
+# EKS and Helm chart pins — keep in sync with README "Tested version stack".
+# Vendor matrices may list lower max K8s versions; see README warning before production use.
+kubernetes_version           = "1.37"
+karpenter_helm_chart_version = "1.14.1" # OCI: public.ecr.aws/karpenter/karpenter
+cilium_helm_chart_version    = "1.20.2" # https://helm.cilium.io/
 
 # Karpenter system node group (runs the controller)
-karpenter_node_desired_size = 2
-karpenter_node_min_size     = 1
-karpenter_node_max_size     = 3
+karpenter_node_desired_size    = 2
+karpenter_node_min_size        = 1
+karpenter_node_max_size        = 3
 
 # Karpenter workload nodes (provisioned by Karpenter)
 karpenter_workload_capacity_type  = "spot" # spot | on_demand | spot_and_on_demand

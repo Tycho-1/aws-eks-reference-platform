@@ -52,13 +52,29 @@ Variables not in your tfvars file use the defaults from `variables.tf`.
 
 The CoreDNS patch runs automatically after `terraform apply` via a `null_resource` provisioner. On destroy/recreate, the patch is applied again on the next apply.
 
+## Tested version stack (demo / reference)
+
+This environment is periodically **apply → optional Flux → NodePool → destroy** tested in **eu-central-1**. Pins in `terraform.tfvars.example` match the last successful run:
+
+| Variable | Tested value |
+|----------|----------------|
+| `kubernetes_version` | `1.37` |
+| `cilium_helm_chart_version` | `1.20.2` |
+| `karpenter_helm_chart_version` | `1.14.1` |
+
+**Warning — vendor docs vs this repo:** Upstream compatibility pages may not list Kubernetes **1.37** yet (for example Cilium 1.20 documents support **&lt; 1.37**; Karpenter 1.14 documents through **1.36**). The combo above worked in a **reference** lab (Cilium ENI, Karpenter NodePool, optional Flux SSH bootstrap, full `terraform destroy`). That is **not** a production guarantee. Before production, align pins with [Cilium Kubernetes compatibility](https://docs.cilium.io/en/stable/network/kubernetes/compatibility/) and [Karpenter compatibility](https://karpenter.sh/docs/upgrading/compatibility/), or choose a cluster version inside both matrices.
+
+If you only change `kubernetes_version` in `terraform.tfvars`, update the Cilium and Karpenter chart versions in the same file.
+
 ## Variables
 
 Copy **`terraform.tfvars.example`** to **`terraform.tfvars`** (see [Variable files](#variable-files-terraformtfvars)), then edit your local `terraform.tfvars`. Variable **definitions** and Terraform defaults are in `variables.tf`; the example file shows typical values:
 
 - **name**, **environment**: Resource naming (default `jumbo-eks`, `dev`).
 - **aws_region**, **aws_profile**: Region and CLI profile (default `eu-central-1`, `null`).
-- **kubernetes_version**: EKS version (default `1.34`).
+- **kubernetes_version**: EKS version (default `1.37`; see [Tested version stack](#tested-version-stack-demo--reference)).
+- **karpenter_helm_chart_version**: Karpenter Helm chart (default `1.14.1`).
+- **cilium_helm_chart_version**: Cilium Helm chart (default `1.20.2`).
 - **karpenter_node_desired_size** / **min** / **max**: System node group size (default 2 / 1 / 3).
 - **karpenter_workload_capacity_type**: `spot` (default, cheap), `on_demand`, or `spot_and_on_demand`.
 - **karpenter_create_default_nodepool**: `true` (default) generates `karpenter-default-nodepool.yaml`; set `false` if you manage NodePool/EC2NodeClass via GitOps.

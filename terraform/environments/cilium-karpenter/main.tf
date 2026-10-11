@@ -136,6 +136,7 @@ module "eks_cilium_karpenter" {
   karpenter_node_max_size                   = var.karpenter_node_max_size
   install_karpenter_helm                    = var.install_karpenter_helm
   karpenter_helm_chart_version              = var.karpenter_helm_chart_version
+  cilium_helm_chart_version                 = var.cilium_helm_chart_version
   cilium_egress_masquerade_interfaces       = var.cilium_egress_masquerade_interfaces
   cilium_ipam_mode                          = var.cilium_ipam_mode
   cilium_cluster_pool_ipv4_cidr             = var.cilium_cluster_pool_ipv4_cidr

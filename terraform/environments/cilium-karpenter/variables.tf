@@ -31,7 +31,7 @@ variable "vpc_cidr" {
 variable "kubernetes_version" {
   description = "EKS Kubernetes version."
   type        = string
-  default     = "1.34"
+  default     = "1.37"
 }
 
 variable "karpenter_node_desired_size" {
@@ -61,7 +61,7 @@ variable "install_karpenter_helm" {
 variable "karpenter_helm_chart_version" {
   description = "Karpenter Helm chart version."
   type        = string
-  default     = "1.6.0"
+  default     = "1.14.1"
 }
 
 variable "karpenter_workload_capacity_type" {
@@ -91,6 +91,12 @@ variable "karpenter_nodepool_limit_memory" {
   description = "Max total allocatable memory across Karpenter workload nodes (BinarySI: Gi, Mi). Default 400Gi for small testing; use 2000Gi+ for prod."
   type        = string
   default     = "400Gi"
+}
+
+variable "cilium_helm_chart_version" {
+  description = "Cilium Helm chart version."
+  type        = string
+  default     = "1.20.2"
 }
 
 variable "cilium_egress_masquerade_interfaces" {
