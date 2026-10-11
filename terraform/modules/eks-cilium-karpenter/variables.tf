@@ -78,7 +78,7 @@ variable "single_nat_gateway" {
 variable "kubernetes_version" {
   description = "Kubernetes version for the EKS cluster."
   type        = string
-  default     = "1.34"
+  default     = "1.37"
 }
 
 variable "cluster_endpoint_public_access" {
@@ -128,7 +128,7 @@ variable "karpenter_node_max_size" {
 variable "karpenter_helm_chart_version" {
   description = "Karpenter Helm chart version to install."
   type        = string
-  default     = "1.6.0"
+  default     = "1.14.1"
 }
 
 variable "install_karpenter_helm" {
@@ -140,6 +140,12 @@ variable "install_karpenter_helm" {
 # -----------------------------------------------------------------------------
 # Cilium
 # -----------------------------------------------------------------------------
+
+variable "cilium_helm_chart_version" {
+  description = "Cilium Helm chart version to install (https://helm.cilium.io/)."
+  type        = string
+  default     = "1.20.2"
+}
 
 variable "cilium_egress_masquerade_interfaces" {
   description = "Interface(s) for egress masquerading. ens+ for AL2023 (the only EKS-optimized AMI family on 1.33+); eth0 for legacy AL2."

@@ -15,7 +15,7 @@ Cilium is deployed via **Helm** (not as an AWS EKS addon — AWS does not offer 
 
 | Aspect | This module |
 |--------|-------------|
-| **Deployment method** | Helm chart (`helm.cilium.io`), version 1.18.6 |
+| **Deployment method** | Helm chart (`helm.cilium.io`); version via `cilium_helm_chart_version` (default 1.20.2) |
 | **VPC CNI** | Not used — Cilium replaces it as the CNI |
 | **IPAM** | `eni` (default) — pods get VPC IPs from ENIs managed by cilium-operator (IRSA role in `cilium.tf`). Alternative `cluster-pool` — Cilium assigns overlay pod CIDRs via CiliumNode CRDs (EKS does not set `spec.podCIDR` when using a custom CNI) |
 | **Kube-proxy** | Replaced — Cilium handles ClusterIP, NodePort, LoadBalancer routing via eBPF |
@@ -128,7 +128,7 @@ module "eks_cilium_karpenter" {
 }
 ```
 
-**Key variables:** `karpenter_node_desired_size` (default 2), `karpenter_node_min_size` (1), `karpenter_node_max_size` (3), `install_karpenter_helm` (true), `karpenter_helm_chart_version` (1.6.0). Cilium: `cilium_ipam_mode` (default `eni`), `cilium_egress_masquerade_interfaces` (default `ens+`), `cilium_encryption_enabled` (true), `cilium_hubble_enabled` (true). Optional: `create_database_subnets` for RDS, `cilium_clustermesh_enabled` for multi-cluster.
+**Key variables:** `kubernetes_version` (default 1.37), `karpenter_node_desired_size` (default 2), `karpenter_node_min_size` (1), `karpenter_node_max_size` (3), `install_karpenter_helm` (true), `karpenter_helm_chart_version` (1.14.1). Cilium: `cilium_helm_chart_version` (1.20.2), `cilium_ipam_mode` (default `eni`), `cilium_egress_masquerade_interfaces` (default `ens+`), `cilium_encryption_enabled` (true), `cilium_hubble_enabled` (true). Optional: `create_database_subnets` for RDS, `cilium_clustermesh_enabled` for multi-cluster. See env README for tested-stack warning vs vendor matrices.
 
 ## After apply
 
